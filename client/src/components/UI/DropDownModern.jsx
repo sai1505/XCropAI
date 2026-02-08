@@ -44,7 +44,7 @@ export default function DropDownModern({ label, value, options, onChange, disabl
 
             {/* Dropdown */}
             {open && !disabled && (
-                <div className="absolute z-50 mt-2 w-95 rounded-3xl border border-neutral-200 bg-white shadow-lg">
+                <div className="absolute z-50 mt-2 w-full rounded-3xl border border-neutral-200 bg-white shadow-lg">
                     {options.map((opt) => (
                         <button
                             key={opt}

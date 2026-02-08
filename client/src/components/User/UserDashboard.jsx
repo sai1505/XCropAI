@@ -2,10 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Upload, Send, Image as ImageIcon, Thermometer, Sparkles, HelpCircle } from "lucide-react";
 import { supabase } from "../../supabase/SupabaseClient";
+import DropDownModern from "../../components/UI/DropDownModern"
 import { motion } from "framer-motion";
 
 /* MAIN */
 export default function UserDashboard() {
+    const [preview, setPreview] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [crop, setCrop] = useState("");
@@ -51,18 +53,27 @@ export default function UserDashboard() {
             .from("user_chats")
             .insert({
                 title: crop,
+
+                disease_name: Array.isArray(analysis.disease_name)
+                    ? analysis.disease_name
+                    : [analysis.disease_name || "Unknown"],
+
                 main_image: analysis.images.original,
+
                 derived_images: {
                     enhanced: analysis.images.enhanced,
                     thermal: analysis.images.thermal
                 },
+
                 analysis: {
                     stats: analysis.stats,
                     llm_analysis: analysis.llm_analysis,
                     prevention: analysis.prevention
                 },
+
                 chat: messages
             })
+
             .select("id")
             .single();
 
@@ -83,38 +94,48 @@ export default function UserDashboard() {
         setLoadingAnalysis(true);
         setAnalysis(null);
 
-        const formData = new FormData();
-        formData.append("name", crop);
-        formData.append("image", file);
+        try {
+            const formData = new FormData();
+            formData.append("name", crop);
+            formData.append("image", file);
 
-        const res = await fetch("http://localhost:8000/api/analyze", {
-            method: "POST",
-            body: formData,
-        });
+            const res = await fetch("http://localhost:8000/api/analyze", {
+                method: "POST",
+                body: formData,
+            });
 
-        const data = await res.json();
+            const data = await res.json();
 
-        setAnalysis(data);
+            setAnalysis(data);
 
-        const newChatId = await saveToSupabase({
-            crop,
-            analysis: data,
-            messages: []
-        });
+            // 🔥 SAVE TO DB
+            const newChatId = await saveToSupabase({
+                crop,
+                analysis: data,
+                messages: []
+            });
 
-        setCurrentChatId(newChatId);
-        navigate(`/dashboard/chat/${newChatId}`, { replace: true });
+            if (!newChatId) {
+                console.error("Chat ID not returned");
+                setLoadingAnalysis(false);
+                return;
+            }
+
+            // 🔥 UPDATE LOCAL STATE
+            setCurrentChatId(newChatId);
+
+            // 🔥 UPDATE URL (THIS SHOWS CHAT ID)
+            navigate(`/dashboard/chat/${newChatId}`, { replace: true });
+
+        } catch (err) {
+            console.error("Upload failed:", err);
+        }
+
         setLoadingAnalysis(false);
-
     };
+
 
     const imgSrc = (b64) => `data:image/png;base64,${b64}`;
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (!file || !crop.trim()) return;
-        handleUpload(file);
-    };
 
     const handleSend = async () => {
         if (!input.trim() || !analysis) return;
@@ -133,7 +154,7 @@ export default function UserDashboard() {
                 },
                 body: JSON.stringify({
                     name: crop,
-                    stats: analysis.stats,
+                    stats: stats,
                     previous_response:
                         messages
                             .filter(m => m.role === "ai")
@@ -187,14 +208,18 @@ export default function UserDashboard() {
             .eq("id", id)
             .single();
 
-        if (error) {
+        if (error || !data) {
             console.error("Resume failed:", error);
+            setLoadingResume(false);
             return;
         }
 
         setCrop(data.title);
 
         setAnalysis({
+            disease_name: Array.isArray(data.disease_name)
+                ? data.disease_name
+                : [data.disease_name || "Unknown"],
             images: {
                 original: data.main_image,
                 enhanced: data.derived_images?.enhanced,
@@ -207,8 +232,10 @@ export default function UserDashboard() {
 
         setMessages(data.chat || []);
         setCurrentChatId(data.id);
+
         setLoadingResume(false);
     };
+
 
     return (
         <div className="h-screen bg-white flex flex-col">
@@ -218,7 +245,7 @@ export default function UserDashboard() {
                 <ImageUpload
                     crop={crop}
                     setCrop={setCrop}
-                    handleFileChange={handleFileChange}
+                    handleAnalyze={handleUpload}
                 />
             )}
 
@@ -245,6 +272,7 @@ export default function UserDashboard() {
                                     original: imgSrc(analysis.images.original),
                                     enhanced: imgSrc(analysis.images.enhanced),
                                     thermal: imgSrc(analysis.images.thermal),
+
                                 }}
                                 stats={analysis.stats}
                                 analysis={analysis}
@@ -271,36 +299,65 @@ export default function UserDashboard() {
 }
 
 /* UPLOAD */
-function ImageUpload({ crop, setCrop, handleFileChange }) {
+function ImageUpload({ crop, setCrop, handleAnalyze }) {
+    const [file, setFile] = useState(null);
+
+    const crops = [
+        "Rice", "Wheat", "Maize", "Potato", "Tomato",
+        "Cotton", "Sugarcane", "Groundnut", "Chilli",
+        "Banana", "Mango"
+    ];
+
     return (
         <div className="flex-1 flex items-center justify-center px-4 font-poppins">
             <div className="w-full max-w-xl text-center space-y-6">
 
-                <input
-                    type="text"
-                    placeholder="Enter crop name (e.g., Potato)"
-                    value={crop}
-                    onChange={(e) => setCrop(e.target.value)}
-                    className="w-full px-6 py-4 rounded-2xl border border-neutral-200
-                               focus:outline-none focus:ring-2 focus:ring-lime-400"
+                <DropDownModern
+                    label="Select Crop"
+                    value={crop || "Choose crop"}
+                    options={crops}
+                    onChange={setCrop}
                 />
 
                 <label className="block border-2 border-neutral-200 rounded-3xl
-                                  px-24 py-20 cursor-pointer hover:border-lime-400">
-                    <Upload className="mx-auto text-lime-500" size={36} />
-                    <p className="mt-4">Upload plant image</p>
+                  px-10 py-10 cursor-pointer hover:border-lime-400">
+
+                    {file ? (
+                        <img
+                            src={URL.createObjectURL(file)}
+                            alt="preview"
+                            className="mx-auto h-48 object-contain rounded-xl mb-3"
+                        />
+                    ) : (
+                        <Upload className="mx-auto text-lime-500" size={36} />
+                    )}
+
+                    <p className="mt-2 text-sm">
+                        {file ? file.name : "Choose plant image"}
+                    </p>
 
                     <input
                         type="file"
                         accept="image/*"
                         hidden
-                        onChange={handleFileChange}
+                        onChange={(e) => setFile(e.target.files[0])}
                     />
                 </label>
+
+                <button
+                    disabled={!crop || !file}
+                    onClick={() => handleAnalyze(file)}
+                    className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-500
+                               text-black font-poppins-medium disabled:opacity-50"
+                >
+                    Analyze Plant
+                </button>
             </div>
         </div>
     );
 }
+
+
 
 
 /* ANALYSIS FLOW */
@@ -308,7 +365,13 @@ function AnalysisFlow({ image, stats, analysis, currentChatId }) {
     return (
         <div className="px-4 py-10 space-y-10 max-w-5xl mx-auto pb-32">
             <ImageFlow image={image} />
-            <Insights stats={stats} llm={analysis.llm_analysis} prevention={analysis.prevention} chatId={currentChatId} />
+            <Insights
+                disease_name={analysis.disease_name}
+                stats={analysis.stats}
+                llm={analysis.llm_analysis}
+                prevention={analysis.prevention}
+                chatId={currentChatId}
+            />
         </div>
     );
 }
@@ -339,7 +402,7 @@ function ImageCard({ title, image, icon, overlay }) {
 }
 
 /* INSIGHTS */
-function Insights({ stats, llm, prevention, chatId }) {
+function Insights({ disease_name, stats, llm, prevention, chatId }) {
     const health = stats.plant_health;
     const imageAnalysis = stats.image_analysis;
     const navigate = useNavigate();
@@ -347,10 +410,40 @@ function Insights({ stats, llm, prevention, chatId }) {
     return (
         <div className="space-y-6">
             {/* EXISTING STATS */}
-            <div className="rounded-3xl bg-lime-50 p-6 space-y-4">
+            <div className="rounded-3xl bg-lime-50 p-6 space-y-5">
                 <h2 className="font-poppins-medium text-lg">AI Findings</h2>
 
-                <Stat label="Disease Stage" value={health.disease_stage} />
+                {/* DISEASE DISPLAY — SIMPLE (NO HIGHLIGHT) */}
+                <div className="bg-white border border-lime-200 rounded-2xl px-5 py-4 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">
+                        {Array.isArray(disease_name) && disease_name.length > 1
+                            ? "Detected Diseases"
+                            : "Detected Disease"}
+                    </p>
+
+                    {Array.isArray(disease_name) ? (
+                        disease_name.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {disease_name.map((d, i) => (
+                                    <span
+                                        key={i}
+                                        className="px-3 py-1 rounded-full bg-lime-100 text-lime-800 text-sm"
+                                    >
+                                        {d}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-700">Unknown</p>
+                        )
+                    ) : (
+                        <p className="text-gray-700">
+                            {disease_name || "Unknown"}
+                        </p>
+                    )}
+                </div>
+
+                {/* Remaining Stats */}
                 <Stat label="Stress %" value={`${health.stress_percentage}%`} />
                 <Stat label="Care Urgency" value={health.care_urgency} />
                 <Stat label="Recovery Potential" value={health.recovery_potential} />
@@ -359,6 +452,7 @@ function Insights({ stats, llm, prevention, chatId }) {
                 <Stat label="Health Score" value={health.health_score} />
                 <Stat label="Survivability Score" value={health.survivability_score} />
             </div>
+
 
             {/* LLM EXPLANATION — CHAT STYLE */}
             {llm && (

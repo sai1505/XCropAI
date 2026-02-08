@@ -181,7 +181,20 @@ export default function UserProfile() {
                                 label="Role"
                                 value={role}
                                 disabled={!isEditing}
-                                options={["Farmer", "Researcher", "Student"]}
+                                options={[
+                                    "Farmer",
+                                    "Farm Owner",
+                                    "Agriculture Student",
+                                    "Researcher",
+                                    "Agronomist",
+                                    "Extension Officer",
+                                    "Agri Consultant",
+                                    "Agri Startup",
+                                    "Home Gardener",
+                                    "Hobby Grower",
+                                    "NGO / Government",
+                                    "Other"
+                                ]}
                                 onChange={(v) => {
                                     if (!isEditing) return;
                                     setRole(v);
