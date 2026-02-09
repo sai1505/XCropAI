@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 
 /* MAIN */
 export default function UserDashboard() {
-    const [preview, setPreview] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [crop, setCrop] = useState("");
@@ -303,9 +302,18 @@ function ImageUpload({ crop, setCrop, handleAnalyze }) {
     const [file, setFile] = useState(null);
 
     const crops = [
-        "Rice", "Wheat", "Maize", "Potato", "Tomato",
-        "Cotton", "Sugarcane", "Groundnut", "Chilli",
-        "Banana", "Mango"
+        "Coconut",
+        "Rice",
+        "Tomato",
+        "Brinjal",
+        "Chilli",
+        "Banana",
+        "Mango",
+        "Groundnut",
+        "Maize",
+        "Sugarcane",
+        "Cotton",
+        "Turmeric"
     ];
 
     return (
