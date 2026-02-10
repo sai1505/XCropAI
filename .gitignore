@@ -12,3 +12,4 @@ XCropAIService/api/__pycache__
 XCropAIService/services/__pycache__
 XCropAIService/core/__pycache__
 XCropAIService/vision/__pycache__
+XCropAIService/models/
