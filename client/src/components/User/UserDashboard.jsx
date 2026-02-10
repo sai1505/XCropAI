@@ -15,8 +15,7 @@ export default function UserDashboard() {
     const { chatId } = useParams();
     const [loadingAnalysis, setLoadingAnalysis] = useState(false);
     const [loadingResume, setLoadingResume] = useState(false);
-    const isProcessing =
-        loadingAnalysis || loadingResume || analysis;
+    const isProcessing = loadingAnalysis || loadingResume || analysis !== null;
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -78,7 +77,7 @@ export default function UserDashboard() {
 
         // 3️⃣ Handle errors
         if (error) {
-            console.error("SUPABASE INSERT ERROR:", error);
+            console.error("SUPABASE INSERT ERROR FULL:", JSON.stringify(error, null, 2));
             return null;
         }
 
@@ -141,9 +140,12 @@ export default function UserDashboard() {
 
         const userMsg = { role: "user", content: input };
 
-        setMessages(prev => [...prev, userMsg]);
+        setMessages(prev => [
+            ...prev,
+            userMsg,
+            { role: "ai", content: "__thinking__" }
+        ]);
         setInput("");
-        setMessages(prev => [...prev, { role: "ai", content: "__thinking__" }]);
 
         try {
             const res = await fetch("http://localhost:8000/api/analyze/chat", {
@@ -153,7 +155,7 @@ export default function UserDashboard() {
                 },
                 body: JSON.stringify({
                     name: crop,
-                    stats: stats,
+                    stats: analysis.stats,
                     previous_response:
                         messages
                             .filter(m => m.role === "ai")
