@@ -13,16 +13,38 @@ export default function UserHistory() {
         loadHistory();
     }, []);
 
+    const getAuthToken = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token;
+    };
+
     const loadHistory = async () => {
         setLoading(true);
 
-        const { data, error } = await supabase
-            .from("user_chats")
-            .select("id, title, created_at")
-            .order("created_at", { ascending: false });
+        try {
+            const token = await getAuthToken();
 
-        if (!error) setChats(data || []);
-        setLoading(false);
+            const res = await fetch("http://localhost:8000/api/users/history", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) throw new Error("Could not fetch history");
+
+            const data = await res.json();
+
+            // The backend Repo already handles the .order("created_at", desc=True)
+            setChats(data || []);
+
+        } catch (err) {
+            console.error("History Error:", err);
+            setChats([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const SkeletonCard = () => (
@@ -39,22 +61,33 @@ export default function UserHistory() {
         </div>
     );
 
-
-
     const handleResume = (id) => {
         navigate(`/dashboard/chat/${id}`);
     };
 
     const handleDelete = async (id) => {
-        const confirm = window.confirm("Delete this chat permanently?");
-        if (!confirm) return;
+        const confirmDelete = window.confirm("Delete this chat permanently?");
+        if (!confirmDelete) return;
 
-        await supabase
-            .from("user_chats")
-            .delete()
-            .eq("id", id);
+        try {
+            const token = await getAuthToken();
+            const res = await fetch(`http://localhost:8000/api/users/history/${id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
 
-        setChats(prev => prev.filter(chat => chat.id !== id));
+            if (res.ok) {
+                // Remove from local state only after successful backend deletion
+                setChats(prev => prev.filter(chat => chat.id !== id));
+            } else {
+                alert("Failed to delete chat.");
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            alert("An error occurred while deleting.");
+        }
     };
 
     return (

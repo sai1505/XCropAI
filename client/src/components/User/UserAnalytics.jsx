@@ -9,18 +9,44 @@ export default function AnalyticsPage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const getAuthToken = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token;
+    };
 
     useEffect(() => {
-        setLoading(true);
-        supabase
-            .from("user_chats")
-            .select("analysis")
-            .eq("id", chatId)
-            .single()
-            .then(({ data }) => {
-                setStats(data?.analysis?.stats || null);
+        const fetchStats = async () => {
+            if (!chatId) return;
+
+            setLoading(true);
+            try {
+                const token = await getAuthToken();
+                // 🔥 FIXED URL: Added /analytics/ before the chatId
+                const res = await fetch(`http://localhost:8000/api/users/analytics/${chatId}`, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch stats");
+
+                const data = await res.json();
+
+                // Note: Your backend service returns the stats object directly
+                // so 'data' might already be the stats object, not { stats: ... }
+                setStats(data || null);
+
+            } catch (err) {
+                console.error("Database fetch error:", err);
+                setStats(null);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchStats();
     }, [chatId]);
 
 

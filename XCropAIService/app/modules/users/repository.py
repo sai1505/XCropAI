@@ -8,7 +8,7 @@ class UserRepository:
         """Inserts the record into user_chats using Storage PATHS."""
         insert_data = {
             "user_id": user_id,
-            "user_email":data["email"],
+            "user_email": data["email"],
             "title": data["name"],
             "disease_name": (
                 [data["disease_name"]]
@@ -40,7 +40,17 @@ class UserRepository:
             .execute()
         )
 
+    def update_chat_history(self, chat_id: str, user_id: str, new_messages: list):
+        return (
+            supabase.table("user_chats")
+            .update({"chat": new_messages, "updated_at": "now()"})
+            .eq("id", chat_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
     def fetch_chat_by_id(self, user_id: str, chat_id: str):
+        """Pure DB logic: Get the raw row from Supabase."""
         return (
             supabase.table("user_chats")
             .select("*")

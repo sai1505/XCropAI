@@ -139,11 +139,29 @@ async def analyze_plant(
 async def follow_up_chat(
     payload: ChatPayload,
     user: dict = Depends(verify_token),
-    token: str = Depends(security),
 ):
+    user_id = user["sub"]
+
+    # 1. Fetch existing chat to maintain history context
+    existing_chat = repo.fetch_chat_by_id(user_id, payload.chat_id)
+    history = existing_chat.data.get("chat", [])
+
+    # 2. Get AI Response
     ai_response = ask_groq_followup(
-        payload.name, payload.stats, payload.previous_response, payload.question
+        payload.name,
+        payload.stats,
+        history,
+        payload.question,
     )
 
-    # Optional: Update the DB with the new message if chatId is provided
+    # 3. Update History Array
+    new_history = history + [
+        {"role": "user", "content": payload.question},
+        {"role": "ai", "content": ai_response["response"]},
+    ]
+
+    # 4. Save to DB (Backend manages the "Clean" state)
+    repo.update_chat_history(payload.chat_id, user_id, new_history)
+
     return ai_response
+

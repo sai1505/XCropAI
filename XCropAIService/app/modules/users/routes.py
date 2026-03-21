@@ -20,6 +20,12 @@ async def get_history(user: dict = Depends(get_current_user)):
     return UserRepository().fetch_user_history(user["sub"]).data
 
 
+@router.get("/history/{chat_id}")
+async def get_chat_session(chat_id: str, user: dict = Depends(get_current_user)):
+    # Simply call the service
+    return services.get_chat_session_service(user["sub"], chat_id)
+
+
 @router.delete("/history/{chat_id}")
 async def delete_history(chat_id: str, user: dict = Depends(get_current_user)):
     from .repository import UserRepository

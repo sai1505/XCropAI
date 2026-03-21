@@ -34,19 +34,9 @@ export default function UserDashboard() {
         setCurrentChatId(null);
     };
 
-    const getSignedUrl = async (path) => {
-        if (!path) return null;
-
-        const { data, error } = await supabase.storage
-            .from("chat_images")
-            .createSignedUrl(path, 60 * 60); // 1 hour
-
-        if (error) {
-            console.error("Signed URL error:", error);
-            return null;
-        }
-
-        return data.signedUrl;
+    const getAuthToken = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token;
     };
 
     const uploadImage = async (base64, path) => {
@@ -118,73 +108,40 @@ export default function UserDashboard() {
         setAnalysis(null);
 
         try {
+            const token = await getAuthToken();
             const formData = new FormData();
             formData.append("name", crop);
             formData.append("image", file);
 
             const res = await fetch("http://localhost:8000/api/analyze", {
                 method: "POST",
+                headers: {
+                    // The browser will set it and the boundary automatically.
+                    "Authorization": `Bearer ${token}`,
+                },
                 body: formData,
             });
 
+            if (!res.ok) throw new Error("Backend analysis failed");
+
             const data = await res.json();
-
-            // 🔥 prepare paths
-            const user = (await supabase.auth.getUser()).data.user;
-            const basePath = `${user.id}/${Date.now()}`;
-
-            const originalPath = `${basePath}_orig.png`;
-            const enhancedPath = `${basePath}_enh.png`;
-            const thermalPath = `${basePath}_therm.png`;
-
-            // 🔥 upload images
-            await uploadImage(data.images.original, originalPath);
-            await uploadImage(data.images.enhanced, enhancedPath);
-            await uploadImage(data.images.thermal, thermalPath);
-
-            // 🔥 get signed URLs (for UI)
-            const originalUrl = await getSignedUrl(originalPath);
-            const enhancedUrl = await getSignedUrl(enhancedPath);
-            const thermalUrl = await getSignedUrl(thermalPath);
 
             // 🔥 set analysis with URLs (NOT base64 anymore)
             setAnalysis({
                 ...data,
-                images: {
-                    original: originalUrl,
-                    enhanced: enhancedUrl,
-                    thermal: thermalUrl,
-                }
+                disease_name: Array.isArray(data.disease_name)
+                    ? data.disease_name
+                    : [data.disease_name]
             });
 
-            // 🔥 SAVE TO DB (store paths, NOT URLs)
-            const newChatId = await saveToSupabase({
-                crop,
-                analysis: {
-                    ...data,
-                    images: {
-                        original: originalPath,
-                        enhanced: enhancedPath,
-                        thermal: thermalPath,
-                    }
-                },
-                messages: []
-            });
-
-            if (!newChatId) {
-                console.error("Chat ID not returned");
-                setLoadingAnalysis(false);
-                return;
-            }
-
-            // 🔥 UPDATE LOCAL STATE
-            setCurrentChatId(newChatId);
+            setCurrentChatId(data.chat_id);
 
             // 🔥 UPDATE URL (THIS SHOWS CHAT ID)
-            navigate(`/dashboard/chat/${newChatId}`, { replace: true });
+            navigate(`/dashboard/chat/${data.chat_id}`, { replace: true });
 
         } catch (err) {
             console.error("Upload failed:", err);
+            alert("Failed to analyze image. Please check backend connection.");
         }
 
         setLoadingAnalysis(false);
@@ -192,109 +149,117 @@ export default function UserDashboard() {
 
 
     const handleSend = async () => {
-        if (!input.trim() || !analysis) return;
+        // 1. Validation & Guard Rails
+        if (!input.trim() || !analysis || !currentChatId) {
+            console.warn("Missing required data for chat:", { input, analysis, currentChatId });
+            return;
+        }
 
         const userMsg = { role: "user", content: input };
+        const token = await getAuthToken();
 
-        setMessages(prev => [
-            ...prev,
-            userMsg,
-            { role: "ai", content: "__thinking__" }
-        ]);
+        // 2. Optimistic UI Update
+        // We add the user message and a placeholder for the AI
+        setMessages(prev => [...prev, userMsg, { role: "ai", content: "__thinking__" }]);
         setInput("");
 
         try {
+            // 3. Backend Request
             const res = await fetch("http://localhost:8000/api/analyze/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
+                    chat_id: currentChatId,
+                    question: userMsg.content,
                     name: crop,
                     stats: analysis.stats,
-                    previous_response:
-                        messages
-                            .filter(m => m.role === "ai")
-                            .map(m => m.content)
-                            .join("\n"),
-                    question: userMsg.content,
                 }),
             });
 
-            const data = await res.json();
-
-            const updatedMessages = [
-                ...messages,
-                userMsg,
-                { role: "ai", content: data.response }
-            ];
-
-            setMessages(updatedMessages);
-
-            // ✅ UPDATE CHAT IN SUPABASE
-            if (!currentChatId) {
-                console.warn("chatId missing, cannot update chat");
-                return;
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.detail || "Chat failed");
             }
 
-            await supabase
-                .from("user_chats")
-                .update({
-                    chat: updatedMessages,
-                    updated_at: new Date()
-                })
-                .eq("id", currentChatId);
+            const data = await res.json();
+
+            // 4. Update UI with Real AI Response
+            // Replace the "thinking" placeholder with the actual response string
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                // Find the last message (which should be '__thinking__') and update it
+                if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].content === "__thinking__") {
+                    newMsgs[newMsgs.length - 1] = { role: "ai", content: data.response };
+                }
+                return newMsgs;
+            });
 
         } catch (err) {
-            setMessages(prev => [
-                ...prev,
-                {
-                    role: "ai",
-                    content: "⚠️ Unable to get response. Please try again."
+            console.error("Chat Error:", err);
+            // 5. Error Handling
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].content === "__thinking__") {
+                    newMsgs[newMsgs.length - 1] = {
+                        role: "ai",
+                        content: "⚠️ Sorry, I couldn't process that. Please try again."
+                    };
                 }
-            ]);
+                return newMsgs;
+            });
         }
     };
 
     const resumeChat = async (id) => {
         setLoadingResume(true);
 
-        const { data, error } = await supabase
-            .from("user_chats")
-            .select("*")
-            .eq("id", id)
-            .single();
+        try {
+            const token = await getAuthToken();
 
-        if (error || !data) {
-            console.error("Resume failed:", error);
+            // 1. Fetch data from your new FastAPI endpoint
+            const res = await fetch(`http://localhost:8000/api/users/history/${id}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.detail || "Failed to resume chat");
+            }
+
+            const data = await res.json();
+
+            // 2. Update UI State with backend-prepared data
+            setCrop(data.title);
+            setCurrentChatId(data.id);
+            setMessages(data.chat || []);
+
+            // 3. Set Analysis (Images are already Signed URLs from backend)
+            setAnalysis({
+                disease_name: Array.isArray(data.disease_name)
+                    ? data.disease_name
+                    : [data.disease_name || "Unknown"],
+                images: {
+                    original: data.images.original,
+                    enhanced: data.images.enhanced,
+                    thermal: data.images.thermal,
+                },
+                stats: data.analysis?.stats,
+                llm_analysis: data.analysis?.llm_analysis,
+                prevention: data.analysis?.prevention,
+            });
+
+        } catch (err) {
+            console.error("Resume failed:", err);
+        } finally {
             setLoadingResume(false);
-            return;
         }
-
-        setCrop(data.title);
-
-        const original = await getSignedUrl(data.main_image);
-        const enhanced = await getSignedUrl(data.derived_images?.enhanced);
-        const thermal = await getSignedUrl(data.derived_images?.thermal);
-
-        setAnalysis({
-            disease_name: Array.isArray(data.disease_name)
-                ? data.disease_name
-                : [data.disease_name || "Unknown"],
-            images: {
-                original: original,
-                enhanced: enhanced,
-                thermal: thermal,
-            },
-            stats: data.analysis?.stats,
-            llm_analysis: data.analysis?.llm_analysis,
-            prevention: data.analysis?.prevention,
-        });
-
-        setMessages(data.chat || []);
-        setCurrentChatId(data.id);
-
-        setLoadingResume(false);
     };
 
 
@@ -483,7 +448,7 @@ function Insights({ disease_name, stats, llm, prevention, chatId }) {
                 <h2 className="font-poppins-medium text-lg">AI Findings</h2>
 
                 {/* DISEASE DISPLAY — SIMPLE (NO HIGHLIGHT) */}
-                <div className="bg-white border border-lime-200 rounded-2xl px-5 py-4 shadow-sm">
+                <div className="bg-white font-poppins border border-lime-200 rounded-2xl px-5 py-4 shadow-sm">
                     <p className="text-xs text-gray-500 mb-2">
                         {Array.isArray(disease_name) && disease_name.length > 1
                             ? "Detected Diseases"

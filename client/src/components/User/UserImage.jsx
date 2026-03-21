@@ -6,30 +6,58 @@ export default function UserImage() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
-
     useEffect(() => {
         loadImages();
     }, []);
 
+    const getAuthToken = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token;
+    };
+
     const loadImages = async () => {
         setLoading(true);
 
-        const { data, error } = await supabase
-            .from("user_chats")
-            .select("id, title, created_at, main_image, derived_images")
-            .order("created_at", { ascending: false });
+        try {
+            const token = await getAuthToken();
+            const res = await fetch("http://localhost:8000/api/users/gallery", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
 
-        if (!error) setItems(data || []);
-        setLoading(false);
+            if (!res.ok) throw new Error("Failed to load gallery");
+
+            const data = await res.json();
+
+            // 'data' is now an array of objects containing 'urls' (signed links)
+            setItems(data || []);
+
+        } catch (err) {
+            console.error("Gallery Load Error:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const imgSrc = (b64) => `data:image/png;base64,${b64}`;
+    const downloadImage = async (url, filename) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
 
-    const downloadImage = (b64, filename) => {
-        const link = document.createElement("a");
-        link.href = imgSrc(b64);
-        link.download = filename;
-        link.click();
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error("Download failed:", err);
+        }
     };
 
     const SkeletonImageCard = () => (
@@ -86,31 +114,22 @@ export default function UserImage() {
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-4">
-                        {/* ORIGINAL */}
                         <ImageCard
                             label="Original"
-                            image={chat.main_image}
-                            onDownload={() =>
-                                downloadImage(chat.main_image, `${chat.title}_original.png`)
-                            }
+                            image={chat.urls?.original}
+                            onDownload={() => downloadImage(chat.urls.original, `${chat.title}_original.png`)}
                         />
 
-                        {/* ENHANCED */}
                         <ImageCard
                             label="Enhanced"
-                            image={chat.derived_images?.enhanced}
-                            onDownload={() =>
-                                downloadImage(chat.derived_images.enhanced, `${chat.title}_enhanced.png`)
-                            }
+                            image={chat.urls?.enhanced}
+                            onDownload={() => downloadImage(chat.urls.enhanced, `${chat.title}_enhanced.png`)}
                         />
 
-                        {/* THERMAL */}
                         <ImageCard
                             label="Thermal"
-                            image={chat.derived_images?.thermal}
-                            onDownload={() =>
-                                downloadImage(chat.derived_images.thermal, `${chat.title}_thermal.png`)
-                            }
+                            image={chat.urls?.thermal}
+                            onDownload={() => downloadImage(chat.urls.thermal, `${chat.title}_thermal.png`)}
                         />
                     </div>
                 </div>
@@ -125,7 +144,7 @@ function ImageCard({ label, image, onDownload }) {
     return (
         <div className="rounded-2xl overflow-hidden bg-white shadow">
             <img
-                src={`data:image/png;base64,${image}`}
+                src={image}
                 alt={label}
                 className="w-full h-48 object-cover cursor-pointer"
             />
