@@ -39,67 +39,6 @@ export default function UserDashboard() {
         return session?.access_token;
     };
 
-    const uploadImage = async (base64, path) => {
-        const byteString = atob(base64);
-        const arrayBuffer = new Uint8Array(byteString.length);
-
-        for (let i = 0; i < byteString.length; i++) {
-            arrayBuffer[i] = byteString.charCodeAt(i);
-        }
-
-        const { data, error } = await supabase.storage
-            .from("chat_images") // bucket name
-            .upload(path, arrayBuffer, {
-                contentType: "image/png",
-            });
-
-        if (error) {
-            console.error("Upload error:", error);
-            return null;
-        }
-
-        return path;
-    };
-
-    const saveToSupabase = async ({ crop, analysis, messages }) => {
-        const user = (await supabase.auth.getUser()).data.user;
-        if (!user) return null;
-
-        const { data, error } = await supabase
-            .from("user_chats")
-            .insert({
-                title: crop,
-                disease_name: Array.isArray(analysis.disease_name)
-                    ? analysis.disease_name
-                    : [analysis.disease_name || "Unknown"],
-
-                // ✅ already paths (NOT URLs)
-                main_image: analysis.images.original,
-
-                derived_images: {
-                    enhanced: analysis.images.enhanced,
-                    thermal: analysis.images.thermal
-                },
-
-                analysis: {
-                    stats: analysis.stats,
-                    llm_analysis: analysis.llm_analysis,
-                    prevention: analysis.prevention
-                },
-
-                chat: messages
-            })
-            .select("id")
-            .single();
-
-        if (error) {
-            console.error(error);
-            return null;
-        }
-
-        return data.id;
-    };
-
 
     const handleUpload = async (file) => {
         if (!crop.trim()) return;
@@ -150,7 +89,9 @@ export default function UserDashboard() {
 
     const handleSend = async () => {
         // 1. Validation & Guard Rails
-        if (!input.trim() || !analysis || !currentChatId) {
+        const activeChatId = currentChatId || chatId;
+
+        if (!input.trim() || !analysis || !activeChatId) {
             console.warn("Missing required data for chat:", { input, analysis, currentChatId });
             return;
         }
@@ -172,7 +113,7 @@ export default function UserDashboard() {
                     "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    chat_id: currentChatId,
+                    chat_id: activeChatId,
                     question: userMsg.content,
                     name: crop,
                     stats: analysis.stats,
@@ -301,7 +242,7 @@ export default function UserDashboard() {
                                 }}
                                 stats={analysis.stats}
                                 analysis={analysis}
-                                currentChatId={currentChatId}
+                                currentChatId={chatId || currentChatId}
                             />
 
                             <ChatUI

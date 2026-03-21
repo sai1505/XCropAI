@@ -16,10 +16,8 @@ from app.modules.ml_services.services.llm import (
     ask_groq_for_analysis,
     ask_groq_for_prevention,
 )
+from app.modules.ml_services.services.disease_name_llm import analyze_plant_disease
 from app.core.config import OUTPUT_DIR
-from app.core.merge import merged_labels
-from app.core.simple_rules import detect_disease_production
-from app.core.plant_mapper import detect_plant_from_labels
 
 # Security & DB
 from app.modules.auth.utils import verify_token
@@ -85,11 +83,7 @@ async def analyze_plant(
         prevention = ask_groq_for_prevention(name, stats)
         llm_analysis = ask_groq_for_analysis(name, stats)
 
-        disease = "Unknown"
-        labels = merged_labels(temp_orig)
-        plant = detect_plant_from_labels(labels)
-        if plant:
-            disease, _, _ = detect_disease_production(labels, temp_orig, plant)
+        disease = analyze_plant_disease(temp_orig, name)
 
         # 4. ☁️ DIRECT CLOUD UPLOAD (Paths stored in DB)
         paths = {
@@ -164,4 +158,3 @@ async def follow_up_chat(
     repo.update_chat_history(payload.chat_id, user_id, new_history)
 
     return ai_response
-

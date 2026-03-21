@@ -38,6 +38,7 @@ class AnalysisResponse(BaseModel):
 
 
 class ChatPayload(BaseModel):
+    chat_id: str
     name: str
     stats: Dict[str, Any]
     previous_response: Optional[str] = ""
