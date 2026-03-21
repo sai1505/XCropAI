@@ -1,6 +1,6 @@
-from vision.plantnet import plantnet_labels
-from vision.inaturalist import inaturalist_labels
-from vision.opencv_symptoms import opencv_symptoms
+from app.vision.plantnet import plantnet_labels
+from app.vision.inaturalist import inaturalist_labels
+from app.vision.opencv_symptoms import opencv_symptoms
 
 
 def merged_labels(img_path):

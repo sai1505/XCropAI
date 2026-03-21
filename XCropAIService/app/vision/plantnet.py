@@ -1,5 +1,5 @@
 import requests
-from core.config import PLANTNET_KEY
+from app.core.config import PLANTNET_KEY
 
 
 def plantnet_labels(img_path):

@@ -4,24 +4,24 @@ import os
 import shutil
 import numpy as np
 from datetime import datetime
-from services.stress import encode_image
-from services.thermal import rgb_to_pseudo_thermal
-from services.stress import detect_stress
-from services.stats import generate_plant_stats
-from services.llm import (
+from app.services.stress import encode_image
+from app.services.thermal import rgb_to_pseudo_thermal
+from app.services.stress import detect_stress
+from app.services.stats import generate_plant_stats
+from app.services.llm import (
     ask_groq_followup,
     ask_groq_for_analysis,
     ask_groq_for_prevention,
 )
-from core.config import OUTPUT_DIR
-from core.merge import merged_labels
-from core.simple_rules import detect_disease_production
-from core.plant_mapper import detect_plant_from_labels
+from app.core.config import OUTPUT_DIR
+from app.core.merge import merged_labels
+from app.core.simple_rules import detect_disease_production
+from app.core.plant_mapper import detect_plant_from_labels
 import json
 
 router = APIRouter(prefix="/analyze", tags=["Plant Analysis"])
 
-with open("data/andhra_crops_diseases.json") as f:
+with open("app/data/andhra_crops_diseases.json") as f:
     CROP_DB = json.load(f)
 
 
@@ -54,6 +54,10 @@ async def analyze_plant(name: str = Form(...), image: UploadFile = File(...)):
     stress_percentage = stress_result["stress_percentage"]
     enhanced_b64 = stress_result["images"]["enhanced"]
     thermal_b64 = stress_result["images"]["thermal"]
+
+    print("Original:", original_b64, "\n")
+    print("Enhanced:", enhanced_b64, "\n")
+    print("Thermal:", thermal_b64, "\n")
 
     # Ensure gray is 2D (already is, but safe)
     if gray.ndim == 3:

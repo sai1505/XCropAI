@@ -34,28 +34,56 @@ export default function UserDashboard() {
         setCurrentChatId(null);
     };
 
-    async function saveToSupabase({ crop, analysis, messages }) {
-        // 1️⃣ Confirm session (already working)
-        const {
-            data: { session },
-            error: sessionError
-        } = await supabase.auth.getSession();
+    const getSignedUrl = async (path) => {
+        if (!path) return null;
 
-        if (!session) {
-            alert("Please login first");
+        const { data, error } = await supabase.storage
+            .from("chat_images")
+            .createSignedUrl(path, 60 * 60); // 1 hour
+
+        if (error) {
+            console.error("Signed URL error:", error);
             return null;
         }
 
-        // 2️⃣ INSERT row
+        return data.signedUrl;
+    };
+
+    const uploadImage = async (base64, path) => {
+        const byteString = atob(base64);
+        const arrayBuffer = new Uint8Array(byteString.length);
+
+        for (let i = 0; i < byteString.length; i++) {
+            arrayBuffer[i] = byteString.charCodeAt(i);
+        }
+
+        const { data, error } = await supabase.storage
+            .from("chat_images") // bucket name
+            .upload(path, arrayBuffer, {
+                contentType: "image/png",
+            });
+
+        if (error) {
+            console.error("Upload error:", error);
+            return null;
+        }
+
+        return path;
+    };
+
+    const saveToSupabase = async ({ crop, analysis, messages }) => {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) return null;
+
         const { data, error } = await supabase
             .from("user_chats")
             .insert({
                 title: crop,
-
                 disease_name: Array.isArray(analysis.disease_name)
                     ? analysis.disease_name
                     : [analysis.disease_name || "Unknown"],
 
+                // ✅ already paths (NOT URLs)
                 main_image: analysis.images.original,
 
                 derived_images: {
@@ -71,19 +99,16 @@ export default function UserDashboard() {
 
                 chat: messages
             })
-
             .select("id")
             .single();
 
-        // 3️⃣ Handle errors
         if (error) {
-            console.error("SUPABASE INSERT ERROR FULL:", JSON.stringify(error, null, 2));
+            console.error(error);
             return null;
         }
 
-        // 4️⃣ Return chat_id
         return data.id;
-    }
+    };
 
 
     const handleUpload = async (file) => {
@@ -104,12 +129,45 @@ export default function UserDashboard() {
 
             const data = await res.json();
 
-            setAnalysis(data);
+            // 🔥 prepare paths
+            const user = (await supabase.auth.getUser()).data.user;
+            const basePath = `${user.id}/${Date.now()}`;
 
-            // 🔥 SAVE TO DB
+            const originalPath = `${basePath}_orig.png`;
+            const enhancedPath = `${basePath}_enh.png`;
+            const thermalPath = `${basePath}_therm.png`;
+
+            // 🔥 upload images
+            await uploadImage(data.images.original, originalPath);
+            await uploadImage(data.images.enhanced, enhancedPath);
+            await uploadImage(data.images.thermal, thermalPath);
+
+            // 🔥 get signed URLs (for UI)
+            const originalUrl = await getSignedUrl(originalPath);
+            const enhancedUrl = await getSignedUrl(enhancedPath);
+            const thermalUrl = await getSignedUrl(thermalPath);
+
+            // 🔥 set analysis with URLs (NOT base64 anymore)
+            setAnalysis({
+                ...data,
+                images: {
+                    original: originalUrl,
+                    enhanced: enhancedUrl,
+                    thermal: thermalUrl,
+                }
+            });
+
+            // 🔥 SAVE TO DB (store paths, NOT URLs)
             const newChatId = await saveToSupabase({
                 crop,
-                analysis: data,
+                analysis: {
+                    ...data,
+                    images: {
+                        original: originalPath,
+                        enhanced: enhancedPath,
+                        thermal: thermalPath,
+                    }
+                },
                 messages: []
             });
 
@@ -132,8 +190,6 @@ export default function UserDashboard() {
         setLoadingAnalysis(false);
     };
 
-
-    const imgSrc = (b64) => `data:image/png;base64,${b64}`;
 
     const handleSend = async () => {
         if (!input.trim() || !analysis) return;
@@ -217,14 +273,18 @@ export default function UserDashboard() {
 
         setCrop(data.title);
 
+        const original = await getSignedUrl(data.main_image);
+        const enhanced = await getSignedUrl(data.derived_images?.enhanced);
+        const thermal = await getSignedUrl(data.derived_images?.thermal);
+
         setAnalysis({
             disease_name: Array.isArray(data.disease_name)
                 ? data.disease_name
                 : [data.disease_name || "Unknown"],
             images: {
-                original: data.main_image,
-                enhanced: data.derived_images?.enhanced,
-                thermal: data.derived_images?.thermal,
+                original: original,
+                enhanced: enhanced,
+                thermal: thermal,
             },
             stats: data.analysis?.stats,
             llm_analysis: data.analysis?.llm_analysis,
@@ -270,10 +330,9 @@ export default function UserDashboard() {
                         <>
                             <AnalysisFlow
                                 image={{
-                                    original: imgSrc(analysis.images.original),
-                                    enhanced: imgSrc(analysis.images.enhanced),
-                                    thermal: imgSrc(analysis.images.thermal),
-
+                                    original: analysis.images.original,
+                                    enhanced: analysis.images.enhanced,
+                                    thermal: analysis.images.thermal,
                                 }}
                                 stats={analysis.stats}
                                 analysis={analysis}

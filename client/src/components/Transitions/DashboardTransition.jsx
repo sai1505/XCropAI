@@ -1,15 +1,63 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import leafLoader from "../../assets/LeafAnim.json";
+import { supabase } from "../../supabase/SupabaseClient";
 
 export default function DashboardTransition() {
     const navigate = useNavigate();
+    const hasInitialized = useRef(false);
+
+    const ensureProfile = async () => {
+        try {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
+
+            if (!session) return;
+
+            const res = await fetch("http://localhost:8000/api/users/verify-profile", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+            });
+
+            if (res.status === 401) {
+                // If the key is not found, the session is likely stale from the migration
+                console.warn("Session stale. Forcing re-login for security...");
+                await supabase.auth.signOut();
+                navigate("/login");
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error("Profile verification failed");
+            }
+
+        } catch (err) {
+            console.error(err);
+            // optional: show toast
+        }
+    };
 
     useEffect(() => {
-        setTimeout(() => {
-            navigate("/dashboard/new", { replace: true });
-        }, 3000);
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+
+        
+        const init = async () => {
+
+            //Profile Check
+            await ensureProfile();
+
+            setTimeout(() => {
+                navigate("/dashboard/new", { replace: true });
+            }, 3000);
+        };
+
+        init();
     }, []);
 
     return (

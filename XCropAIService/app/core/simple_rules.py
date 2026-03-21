@@ -2,7 +2,7 @@ import json
 import os
 import cv2
 import numpy as np
-from core.utils import crop_center_leaf, detect_holes, fungal_texture
+from app.core.utils import crop_center_leaf, detect_holes, fungal_texture
 
 
 AUTO_STATS_FILE = "data/auto_threshold_stats.json"

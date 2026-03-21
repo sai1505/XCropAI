@@ -1,6 +1,6 @@
 import json
 import re
-from core.groq_client import get_groq_client
+from app.core.groq_client import get_groq_client
 
 client = get_groq_client()
 

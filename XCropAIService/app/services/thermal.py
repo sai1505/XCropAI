@@ -1,5 +1,5 @@
 import cv2
-from core.config import OUTPUT_DIR
+from app.core.config import OUTPUT_DIR
 import os
 import re
 

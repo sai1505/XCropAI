@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from core.config import OUTPUT_DIR
+from app.core.config import OUTPUT_DIR
 import base64
 
 def encode_image(img):

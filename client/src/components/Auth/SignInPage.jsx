@@ -29,7 +29,7 @@ export default function SignInPage() {
 
         // SIGNIN SUCCESS
         toast.success("Signed in successfully");
-        navigate("/transition"); // or home page
+        navigate("/transition"); // gatekeeper
     };
 
     const handleGoogleSignIn = async () => {

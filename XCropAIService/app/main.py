@@ -1,11 +1,12 @@
 from fastapi import FastAPI
-from api.routes import router
 from fastapi.middleware.cors import CORSMiddleware
+from app.modules.users.routes import router as users_router
+
 
 app = FastAPI(
     title="XCropAI",
     version="1.0.0",
-    description="Thermal-based Crop Stress Analysis API"
+    description="Crop Diseaese Detection API",
 )
 
 app.add_middleware(
@@ -16,5 +17,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix="/api")
-
+app.include_router(users_router, prefix="/api/users")

@@ -1,15 +1,18 @@
+# Dependencies
 client/node_modules
+XCropAIService/venv
+
+# Environment Secrets
 .env
 .env.*
 client/.env
-client/.env.*
 XCropAIService/.env
-XCropAIService/.env.*
-XCropAIService/venv
-XCropAIService/__pycache__
-XCropAIService/outputs
-XCropAIService/api/__pycache__
-XCropAIService/services/__pycache__
-XCropAIService/core/__pycache__
-XCropAIService/vision/__pycache__
-XCropAIService/models/
+
+# Python Cache & Outputs
+**/__pycache__/
+XCropAIService/outputs/
+XCropAIService/app/test/
+
+# Large Model Files (Keep your repo light for GitHub/IEEE)
+XCropAIService/models/*.pt
+XCropAIService/models/*.onnx
