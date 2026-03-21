@@ -3,8 +3,11 @@ from jose import jwt
 import requests
 import os
 from dotenv import load_dotenv
+from fastapi.security import HTTPBearer
 
 load_dotenv(override=True)
+
+security = HTTPBearer()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"

@@ -3,6 +3,7 @@ import numpy as np
 from app.core.config import OUTPUT_DIR
 import base64
 
+
 def encode_image(img):
     _, buffer = cv2.imencode(".png", img)
     return base64.b64encode(buffer).decode("utf-8")
@@ -27,5 +28,9 @@ def detect_stress(enhanced_gray, thermal_img):
         "images": {
             "enhanced": encode_image(enhanced_gray),
             "thermal": encode_image(thermal_img),
-        }
+        },
+        "images_raw": {
+            "enhanced": enhanced_gray,  # Raw CV2 array
+            "thermal": thermal_img,  # Raw CV2 array
+        },
     }
