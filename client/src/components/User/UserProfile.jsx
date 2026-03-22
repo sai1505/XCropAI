@@ -23,7 +23,7 @@ export default function UserProfile() {
         try {
             const token = await getAuthToken();
 
-            const res = await fetch("http://localhost:8000/api/users/profile", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/profile`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,

@@ -37,11 +37,12 @@ export default function SignUpPage() {
     }
 
     const handleSignUp = async () => {
+        const redirectUrl = `${import.meta.env.VITE_FRONTEND_URL}/signin`;
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: "http://localhost:5173/signin",
+                emailRedirectTo: redirectUrl,
                 data: {
                     display_name: displayName,
                 },
@@ -64,10 +65,11 @@ export default function SignUpPage() {
     };
 
     const handleGoogleSignIn = async () => {
+        const redirectUrl = `${import.meta.env.VITE_FRONTEND_URL}/transition`;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: 'http://localhost:5173/transition',
+                redirectTo: redirectUrl,
             },
         })
 

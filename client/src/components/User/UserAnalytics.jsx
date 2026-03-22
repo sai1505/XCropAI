@@ -22,7 +22,7 @@ export default function AnalyticsPage() {
             try {
                 const token = await getAuthToken();
                 // 🔥 FIXED URL: Added /analytics/ before the chatId
-                const res = await fetch(`http://localhost:8000/api/users/analytics/${chatId}`, {
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/analytics/${chatId}`, {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,

@@ -52,7 +52,7 @@ export default function UserDashboard() {
             formData.append("name", crop);
             formData.append("image", file);
 
-            const res = await fetch("http://localhost:8000/api/analyze", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/analyze`, {
                 method: "POST",
                 headers: {
                     // The browser will set it and the boundary automatically.
@@ -106,7 +106,7 @@ export default function UserDashboard() {
 
         try {
             // 3. Backend Request
-            const res = await fetch("http://localhost:8000/api/analyze/chat", {
+            const res = await fetch("${import.meta.env.VITE_BACKEND_URL}/api/analyze/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -161,7 +161,7 @@ export default function UserDashboard() {
             const token = await getAuthToken();
 
             // 1. Fetch data from your new FastAPI endpoint
-            const res = await fetch(`http://localhost:8000/api/users/history/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/history/${id}`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,

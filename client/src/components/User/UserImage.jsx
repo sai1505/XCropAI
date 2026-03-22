@@ -20,7 +20,7 @@ export default function UserImage() {
 
         try {
             const token = await getAuthToken();
-            const res = await fetch("http://localhost:8000/api/users/gallery", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/gallery`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,

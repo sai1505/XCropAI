@@ -24,7 +24,7 @@ export default function UserHistory() {
         try {
             const token = await getAuthToken();
 
-            const res = await fetch("http://localhost:8000/api/users/history", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/history`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -71,7 +71,7 @@ export default function UserHistory() {
 
         try {
             const token = await getAuthToken();
-            const res = await fetch(`http://localhost:8000/api/users/history/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/history/${id}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`,

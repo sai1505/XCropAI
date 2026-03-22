@@ -17,7 +17,7 @@ export default function DashboardTransition() {
 
             if (!session) return;
 
-            const res = await fetch("http://localhost:8000/api/users/verify-profile", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/verify-profile`, {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,
@@ -46,7 +46,7 @@ export default function DashboardTransition() {
         if (hasInitialized.current) return;
         hasInitialized.current = true;
 
-        
+
         const init = async () => {
 
             //Profile Check

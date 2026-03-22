@@ -33,10 +33,11 @@ export default function SignInPage() {
     };
 
     const handleGoogleSignIn = async () => {
+        const redirectUrl = `${import.meta.env.VITE_FRONTEND_URL}/transition`;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: 'http://localhost:5173/transition',
+                redirectTo: redirectUrl,
             },
         })
 
