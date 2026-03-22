@@ -10,12 +10,24 @@ export default function DashboardTransition() {
 
     const ensureProfile = async () => {
         try {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
 
+            let session = null;
 
-            if (!session) return;
+            // Wait until session is available (OAuth case)
+            for (let i = 0; i < 5; i++) {
+                const { data } = await supabase.auth.getSession();
+                session = data.session;
+
+                if (session) break;
+
+                await new Promise((res) => setTimeout(res, 300));
+            }
+
+            if (!session) {
+                console.warn("No session found");
+                navigate("/login");
+                return;
+            }
 
             const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/verify-profile`, {
                 method: "POST",
@@ -32,9 +44,9 @@ export default function DashboardTransition() {
                 return;
             }
 
-            if (!res.ok) {
-                throw new Error("Profile verification failed");
-            }
+            if (!res.ok) return false;
+
+            return true;
 
         } catch (err) {
             console.error(err);
@@ -46,15 +58,14 @@ export default function DashboardTransition() {
         if (hasInitialized.current) return;
         hasInitialized.current = true;
 
-
         const init = async () => {
+            const success = await ensureProfile();
 
-            //Profile Check
-            await ensureProfile();
-
-            setTimeout(() => {
+            if (success) {
                 navigate("/dashboard/new", { replace: true });
-            }, 3000);
+            } else {
+                navigate("/login");
+            }
         };
 
         init();
