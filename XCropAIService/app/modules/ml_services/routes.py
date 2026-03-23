@@ -5,6 +5,7 @@ import numpy as np
 import time
 from datetime import datetime
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from app.modules.auth.utils import verify_token, security
 
 # ML Services
@@ -29,7 +30,6 @@ repo = UserRepository()
 
 
 @router.post("", response_model=AnalysisResponse)
-@router.post("", response_model=AnalysisResponse)
 async def analyze_plant(
     name: str = Form(...),
     image: UploadFile = File(...),
@@ -49,7 +49,18 @@ async def analyze_plant(
     with open(temp_orig, "wb") as f:
         shutil.copyfileobj(image.file, f)
 
+    temp_enh = None
+    temp_therm = None
+
     try:
+
+        # 1. Validate the Image
+        disease = analyze_plant_disease(temp_orig, name)
+
+        if isinstance(disease, str):
+            if "invalid" in disease.lower():
+                raise HTTPException(status_code=400, detail=disease)
+
         # 2. AI Logic (Thermal & Stress)
         gray, thermal = rgb_to_pseudo_thermal(temp_orig)
         stress_result = detect_stress(gray, thermal)
@@ -82,8 +93,6 @@ async def analyze_plant(
 
         prevention = ask_groq_for_prevention(name, stats)
         llm_analysis = ask_groq_for_analysis(name, stats)
-
-        disease = analyze_plant_disease(temp_orig, name)
 
         # 4. ☁️ DIRECT CLOUD UPLOAD (Paths stored in DB)
         paths = {
@@ -125,7 +134,7 @@ async def analyze_plant(
     finally:
         # Cleanup ALL temp files from the local server
         for p in [temp_orig, temp_enh, temp_therm]:
-            if os.path.exists(p):
+            if p and os.path.exists(p):
                 os.remove(p)
 
 

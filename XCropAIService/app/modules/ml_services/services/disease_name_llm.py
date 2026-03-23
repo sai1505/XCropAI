@@ -22,12 +22,22 @@ def analyze_plant_disease(image_path: str, plant_identity: str = "Plant") -> str
     Identify the specific, exact name of the disease (e.g., 'Tomato Early Blight' instead of just 'Blight').
     If the plant is healthy, return 'Healthy'. 
 
-    Strict Rules:
-    1. Provide the most precise common name including the plant name if applicable.
-    2. Do not provide general categories (e.g., avoid 'Leaf Spot', use 'Septoria Leaf Spot').
+    Step 1: Check if the image contains a plant, leaf, crop, or branch.
+    - If NOT related to plants → return:
+    {{"error": "Invalid image. Please upload a plant-related image."}}
 
-    Return ONLY a JSON object:
-    "disease_name": "name"
+    Step 2: If valid → analyze disease.
+
+    Rules:
+    1. Provide exact disease name (e.g., 'Tomato Early Blight').
+    2. If healthy → return 'healthy'.
+
+    Return ONLY JSON:
+    - If invalid:
+    {{"error": "Invalid image. Please upload a plant-related image."}}
+
+    - If valid:
+    {{"disease_name": "name"}}
     """
 
     try:

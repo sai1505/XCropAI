@@ -4,6 +4,7 @@ import { Upload, Send, Image as ImageIcon, Thermometer, Sparkles, HelpCircle } f
 import { supabase } from "../../supabase/SupabaseClient";
 import DropDownModern from "../../components/UI/DropDownModern"
 import { motion } from "framer-motion";
+import toast, { Toaster } from "react-hot-toast";
 
 /* MAIN */
 export default function UserDashboard() {
@@ -61,9 +62,12 @@ export default function UserDashboard() {
                 body: formData,
             });
 
-            if (!res.ok) throw new Error("Backend analysis failed");
-
             const data = await res.json();
+            console.log(data);
+
+            if (!res.ok) {
+                throw new Error(data.detail || data.message || "Backend analysis failed");
+            }
 
             // 🔥 set analysis with URLs (NOT base64 anymore)
             setAnalysis({
@@ -80,10 +84,12 @@ export default function UserDashboard() {
 
         } catch (err) {
             console.error("Upload failed:", err);
-            alert("Failed to analyze image. Please check backend connection.");
+            toast.error(err.message || "Something went wrong");
+        } finally {
+            setLoadingAnalysis(false);
         }
 
-        setLoadingAnalysis(false);
+
     };
 
 
@@ -206,6 +212,13 @@ export default function UserDashboard() {
 
     return (
         <div className="h-screen bg-white flex flex-col">
+
+            <Toaster position="bottom-right"
+                toastOptions={{
+                    style: {
+                        fontFamily: "Poppins, sans-serif",
+                    },
+                }} />
 
             {/* 🔴 IMAGE UPLOAD — ONLY FIRST TIME */}
             {!isProcessing && (
