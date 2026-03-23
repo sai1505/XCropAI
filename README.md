@@ -42,8 +42,8 @@ XCropAI is an AI-powered crop analysis and assistance platform designed to help 
 ### Cloud & Auth
 
 * **Supabase** (Auth, PostgreSQL, Storage)
+Use a proper **code block + spacing** (Markdown needs monospace + alignment):
 
----
 
 ## 📁 Project Structure
 
@@ -58,7 +58,7 @@ XCropAI/
 ├── XCropAIService/                 # FastAPI + ML backend
 │   ├── app/
 │   │   ├── core/                   # Configs, settings
-│   │   ├── modules/                # Functions of each use case (users, auth, ml_services.)
+│   │   ├── modules/                # Functions of each use case (users, auth, ml_services)
 │   │   │   ├── auth/
 │   │   │   ├── ml_services/
 │   │   │   └── users/
@@ -70,12 +70,11 @@ XCropAI/
 │   ├── main.py                     # FastAPI entry
 │   ├── run.py                      # Startup script
 │   ├── requirements.txt
-│   └── .python-version             # python version (onrender deployment)
+│   └── .python-version             # Python version (Render deployment)
 │
 ├── .gitignore
 └── README.md
 
----
 
 ## 🔐 Environment Variables Setup
 
