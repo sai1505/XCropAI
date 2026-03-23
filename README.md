@@ -44,9 +44,9 @@ XCropAI is an AI-powered crop analysis and assistance platform designed to help 
 * **Supabase** (Auth, PostgreSQL, Storage)
 Use a proper **code block + spacing** (Markdown needs monospace + alignment):
 
-
 ## 📁 Project Structure
 
+```
 XCropAI/
 │
 ├── client/                         # React frontend
@@ -74,6 +74,8 @@ XCropAI/
 │
 ├── .gitignore
 └── README.md
+```
+
 
 
 ## 🔐 Environment Variables Setup
